@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>虚拟信箱系统</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+        <!-- 主界面 -->
+        <div id="mainPage" class="page">
+            <div class="mailbox-container">
+                <h1>✉️ 虚拟信箱</h1>
+                <p class="subtitle">欢迎来到信件的世界</p>
+                
+                <div class="mailbox" onclick="showModal('accessModal')">
+                    <div class="mailbox-icon">📬</div>
+                    <p>点击信箱</p>
+                    <p class="small-text">输入取信码查看信件</p>
+                </div>
+                
+                <div class="action-buttons">
+                    <button class="btn btn-primary" onclick="showModal('writeModal')">✍️ 书写新信件</button>
+                    <button class="btn btn-secondary" onclick="showModal('aboutModal')">ℹ️ 关于</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 取信模态框 -->
+        <div id="accessModal" class="modal">
+            <div class="modal-content">
+                <button class="close" onclick="closeModal('accessModal')">&times;</button>
+                <h2>📬 取信</h2>
+                <p>请输入取信码来查看信件</p>
+                <input type="text" id="accessCode" placeholder="输入取信码" maxlength="20">
+                <button class="btn btn-primary" onclick="accessLetter()">查看信件</button>
+            </div>
+        </div>
+
+        <!-- 书写信件模态框 -->
+        <div id="writeModal" class="modal">
+            <div class="modal-content large">
+                <button class="close" onclick="closeModal('writeModal')">&times;</button>
+                <h2>✍️ 书写信件</h2>
+                
+                <div class="form-group">
+                    <label>寄信人名字</label>
+                    <input type="text" id="senderName" placeholder="请输入你的名字" maxlength="50">
+                </div>
+
+                <div class="form-group">
+                    <label>收信人名字</label>
+                    <input type="text" id="recipientName" placeholder="请输入收信人名字" maxlength="50">
+                </div>
+
+                <div class="form-group">
+                    <label>信件标题</label>
+                    <input type="text" id="letterTitle" placeholder="请输入信件标题" maxlength="100">
+                </div>
+
+                <div class="form-group">
+                    <label>信件内容</label>
+                    <div class="content-tabs">
+                        <button class="tab-btn active" onclick="switchTab('textInput')">📝 文字</button>
+                        <button class="tab-btn" onclick="switchTab('handwriteInput')">✏️ 手写</button>
+                    </div>
+                    
+                    <div id="textInput" class="tab-content active">
+                        <textarea id="letterContent" placeholder="请输入信件内容..." rows="10"></textarea>
+                    </div>
+                    
+                    <div id="handwriteInput" class="tab-content">
+                        <canvas id="handwriteCanvas" width="500" height="400"></canvas>
+                        <div class="canvas-buttons">
+                            <button class="btn btn-small" onclick="clearCanvas()">清除</button>
+                            <button class="btn btn-small" onclick="undoCanvas()">撤销</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>设置取信码（用户自定义）</label>
+                    <input type="text" id="accessCode" placeholder="请设置一个取信码（字母数字，不超过20位）" maxlength="20">
+                    <p class="small-text">* 此码用于他人查看你的信件</p>
+                </div>
+
+                <button class="btn btn-primary" onclick="submitLetter()">📮 发送信件</button>
+            </div>
+        </div>
+
+        <!-- 信件显示模态框 -->
+        <div id="letterModal" class="modal">
+            <div class="modal-content large">
+                <button class="close" onclick="closeModal('letterModal')">&times;</button>
+                <div class="letter-display">
+                    <div class="letter-header">
+                        <h2 id="displayTitle">信件标题</h2>
+                        <p class="letter-info">寄自：<span id="displaySender"></span></p>
+                        <p class="letter-info">寄给：<span id="displayRecipient"></span></p>
+                        <p class="letter-info">时间：<span id="displayDate"></span></p>
+                    </div>
+                    <div class="letter-content" id="displayContent">
+                        <!-- 内容将在这里显示 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 关于模态框 -->
+        <div id="aboutModal" class="modal">
+            <div class="modal-content">
+                <button class="close" onclick="closeModal('aboutModal')">&times;</button>
+                <h2>ℹ️ 关于虚拟信箱</h2>
+                <p>这是一个虚拟信箱系统，让你能够：</p>
+                <ul>
+                    <li>✍️ 手写或输入信件内容</li>
+                    <li>🔐 设置专属的取信码</li>
+                    <li>📬 分享取信码给他人</li>
+                    <li>📖 阅读他人寄给你的信件</li>
+                </ul>
+                <p>所有信件存储在浏览器本地，确保隐私安全。</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
