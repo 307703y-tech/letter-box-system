@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>远方来信</title>
+    <!-- 字体：常用手写/衬线/无衬线，便于多字体预览 -->
+    <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;700&family=Patrick+Hand&family=Merriweather:wght@300;700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -70,7 +72,18 @@
                     </div>
 
                     <div id="textInput" class="tab-content active">
-                        <textarea id="letterContent" placeholder="请输入信件内容..." rows="8"></textarea>
+                        <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+                            <label class="tool-label">字体
+                                <select id="textFont">
+                                    <option value="Roboto, sans-serif">Roboto（无衬线）</option>
+                                    <option value="Merriweather, serif">Merriweather（衬线）</option>
+                                    <option value="Patrick Hand, cursive">Patrick Hand（手写风）</option>
+                                    <option value="Dancing Script, cursive">Dancing Script（手写装饰）</option>
+                                </select>
+                            </label>
+                            <label class="tool-label">字号 <input type="number" id="textSize" value="16" min="12" max="36" style="width:70px"></label>
+                        </div>
+                        <textarea id="letterContent" placeholder="请输入信件内容..." rows="8" style="font-family:inherit"></textarea>
                     </div>
 
                     <div id="handwriteInput" class="tab-content">
@@ -92,6 +105,17 @@
                             <button class="btn btn-primary" onclick="useHandwritingAsContent()">将手写插入到信纸（作为图片）</button>
                             <label class="tool-label">或上传纸质信件： <input type="file" id="uploadPaper" accept="image/*" onchange="handleUploadPaper(event)"></label>
                         </div>
+
+                        <div style="margin-top:8px; display:flex; gap:8px; align-items:center;">
+                            <label class="tool-label">纸张样式
+                                <select id="paperStyle">
+                                    <option value="default">默认</option>
+                                    <option value="lined">横线</option>
+                                    <option value="grid">方格</option>
+                                    <option value="kraft">牛皮纸</option>
+                                </select>
+                            </label>
+                        </div>
                     </div>
                 </div>
 
@@ -105,18 +129,18 @@
             </div>
         </div>
 
-        <!-- 信件显示模态框（含信封/滑动开封） -->
+        <!-- 信件显示模态框（含信封/点击开封） -->
         <div id="letterModal" class="modal">
             <div class="modal-content large letter-modal-content">
                 <button class="close" onclick="closeModal('letterModal')">&times;</button>
 
                 <div class="envelope-container" id="envelopeContainer">
                     <div class="envelope-view" id="envelopeView">
-                        <div class="envelope-cover" id="envelopeCover">
+                        <div class="envelope-cover" id="envelopeCover" onclick="openEnvelope()">
                             <div class="wax">✺</div>
                         </div>
                         <div class="paper" id="paperContent">
-                            <div class="paper-inner">
+                            <div class="paper-inner" id="paperInner">
                                 <div class="letter-header">
                                     <h2 id="displayHeader">远方来信</h2>
                                     <p class="letter-info">寄自：<span id="displaySender"></span></p>
@@ -135,9 +159,9 @@
                     </div>
 
                     <div class="unlock-area">
-                        <div class="slider" id="openSlider" onmousedown="startUnlock(event)" ontouchstart="startUnlock(event)">
+                        <div class="slider" id="openSlider" style="display:none">
                             <div class="slider-handle" id="sliderHandle">⮕</div>
-                            <div class="slider-label">滑动解封</div>
+                            <div class="slider-label">滑动解封（或点击封面）</div>
                         </div>
                     </div>
                 </div>
