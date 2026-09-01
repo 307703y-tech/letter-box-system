@@ -11,6 +11,11 @@ let currentTool = 'pen'; // 'pen' or 'eraser'
 let penColor = '#333333';
 let penSize = 2;
 
+// 放置图片相关
+let placedImageEl = null;
+let placedImageData = null;
+let dragState = null;
+
 // 初始化
 window.onload = function() {
     loadLetters();
@@ -56,10 +61,7 @@ function showModal(modalId) {
             const accessEl = document.getElementById('accessInput');
             if (accessEl) {
                 accessEl.focus();
-                // 使用 onkeydown 覆盖以避免重复绑定
-                accessEl.onkeydown = function(e) {
-                    if (e.key === 'Enter') accessLetter();
-                };
+                accessEl.onkeydown = function(e) { if (e.key === 'Enter') accessLetter(); };
             }
         }, 80);
     }
@@ -86,25 +88,14 @@ window.onclick = function(event) {
 
 // 标签页切换
 function switchTab(tabName, evt) {
-    // 隐藏所有标签内容
     const contents = document.querySelectorAll('.tab-content');
     contents.forEach(content => content.classList.remove('active'));
-    
-    // 移除所有按钮的活跃状态
     const buttons = document.querySelectorAll('.tab-btn');
     buttons.forEach(btn => btn.classList.remove('active'));
-    
-    // 显示选中的标签
     const el = document.getElementById(tabName);
     if (el) el.classList.add('active');
-    
-    // 添加按钮活跃状态
     if (evt && evt.target) evt.target.classList.add('active');
-    
-    // 如果切换到手写模式，重新调整画布
-    if (tabName === 'handwriteInput') {
-        setTimeout(resizeCanvas, 100);
-    }
+    if (tabName === 'handwriteInput') setTimeout(resizeCanvas, 100);
 }
 
 // 手写画布初始化
@@ -112,102 +103,46 @@ function initializeHandwriteCanvas() {
     canvas = document.getElementById('handwriteCanvas');
     if (!canvas) return;
     ctx = canvas.getContext('2d');
-    
-    // 设置画布大小（保留原始宽高为默认）
     resizeCanvas();
-    
-    // 设置画笔样式
     ctx.strokeStyle = penColor;
     ctx.lineWidth = penSize;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     ctx.globalCompositeOperation = 'source-over';
-    
-    // 鼠标事件
-    canvas.addEventListener('mousedown', startDrawing);
-    canvas.addEventListener('mousemove', draw);
-    canvas.addEventListener('mouseup', stopDrawing);
-    canvas.addEventListener('mouseout', stopDrawing);
-    
-    // 触摸事件（支持移动设备）
-    canvas.addEventListener('touchstart', handleTouchStart, {passive:false});
-    canvas.addEventListener('touchmove', handleTouchMove, {passive:false});
-    canvas.addEventListener('touchend', stopDrawing);
-    
+    // 鼠标/触摸
+    canvas.addEventListener('pointerdown', startDrawing);
+    canvas.addEventListener('pointermove', draw);
+    canvas.addEventListener('pointerup', stopDrawing);
+    canvas.addEventListener('pointerout', stopDrawing);
+    canvas.addEventListener('pointercancel', stopDrawing);
     // 保存初始状态
     saveDrawingState();
     blankCanvasData = drawingHistory[0] || null;
 }
 
 function resizeCanvas() {
-    // 保持 canvas 元素尺寸并缩放 CSS 大小（如果需要）
-    // 这里我们不改变画布实际像素尺寸，避免内容被清空
+    // 保持元素 CSS 大小即可；canvas 的绘制大小已设置在 HTML attrs
 }
 
 function startDrawing(e) {
+    // 如果是触摸/笔，阻止页面滚动
+    if (e.pointerType === 'touch' || e.pointerType === 'pen') e.preventDefault();
     isDrawing = true;
     const rect = canvas.getBoundingClientRect();
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    lastX = clientX - rect.left;
-    lastY = clientY - rect.top;
+    lastX = e.clientX - rect.left;
+    lastY = e.clientY - rect.top;
+    // capture pointer to ensure we get pointerup
+    canvas.setPointerCapture(e.pointerId);
 }
 
 function draw(e) {
     if (!isDrawing) return;
     e.preventDefault();
     const rect = canvas.getBoundingClientRect();
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    const x = clientX - rect.left;
-    const y = clientY - rect.top;
-
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
     ctx.beginPath();
     ctx.moveTo(lastX, lastY);
-
-    if (currentTool === 'eraser') {
-        ctx.globalCompositeOperation = 'destination-out';
-        ctx.lineWidth = penSize * 4; // 橡皮更粗
-        ctx.strokeStyle = 'rgba(0,0,0,1)';
-    } else {
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.lineWidth = penSize;
-        ctx.strokeStyle = penColor;
-    }
-
-    ctx.lineTo(x, y);
-    ctx.stroke();
-
-    lastX = x;
-    lastY = y;
-}
-
-function stopDrawing() {
-    if (isDrawing) {
-        isDrawing = false;
-        saveDrawingState();
-    }
-}
-
-function handleTouchStart(e) {
-    const touch = e.touches[0];
-    const rect = canvas.getBoundingClientRect();
-    lastX = touch.clientX - rect.left;
-    lastY = touch.clientY - rect.top;
-    isDrawing = true;
-}
-
-function handleTouchMove(e) {
-    if (!isDrawing) return;
-    e.preventDefault();
-    const touch = e.touches[0];
-    const rect = canvas.getBoundingClientRect();
-    const x = touch.clientX - rect.left;
-    const y = touch.clientY - rect.top;
-
-    ctx.beginPath();
-    ctx.moveTo(lastX, lastY);
-
     if (currentTool === 'eraser') {
         ctx.globalCompositeOperation = 'destination-out';
         ctx.lineWidth = penSize * 4;
@@ -217,335 +152,99 @@ function handleTouchMove(e) {
         ctx.lineWidth = penSize;
         ctx.strokeStyle = penColor;
     }
-
     ctx.lineTo(x, y);
     ctx.stroke();
+    lastX = x; lastY = y;
+}
 
-    lastX = x;
-    lastY = y;
+function stopDrawing(e) {
+    if (isDrawing) {
+        isDrawing = false;
+        try{ if (e && e.pointerId) canvas.releasePointerCapture(e.pointerId); } catch(e){}
+        saveDrawingState();
+    }
 }
 
 function saveDrawingState() {
     try {
-        drawingHistory.push(canvas.toDataURL());
-        // 限制历史长度
-        if (drawingHistory.length > 50) drawingHistory.shift();
-    } catch (e) {
-        console.warn('保存画布状态失败', e);
-    }
+        drawingHistory.push(canvas.toDataURL('image/png'));
+        if (drawingHistory.length > 60) drawingHistory.shift();
+    } catch (e) { console.warn('保存画布状态失败', e); }
 }
 
-function clearCanvas() {
-    if (!ctx) return;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    drawingHistory = [];
-    saveDrawingState();
-}
+function clearCanvas() { if (!ctx) return; ctx.clearRect(0,0,canvas.width,canvas.height); drawingHistory = []; saveDrawingState(); }
+function undoCanvas() { if (drawingHistory.length>1){ drawingHistory.pop(); const img = new Image(); img.src = drawingHistory[drawingHistory.length-1]; img.onload=function(){ ctx.clearRect(0,0,canvas.width,canvas.height); ctx.drawImage(img,0,0,canvas.width,canvas.height); }} else clearCanvas(); }
 
-function undoCanvas() {
-    if (drawingHistory.length > 1) {
-        drawingHistory.pop();
-        const imageData = drawingHistory[drawingHistory.length - 1];
-        const img = new Image();
-        img.src = imageData;
-        img.onload = function() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        };
-    } else {
-        clearCanvas();
-    }
-}
+function setTool(tool){ currentTool=tool; document.getElementById('penBtn')?.classList.toggle('active', tool==='pen'); document.getElementById('eraserBtn')?.classList.toggle('active', tool==='eraser'); }
+function setColor(c){ penColor=c; }
+function setSize(s){ penSize=Number(s); }
 
-function setTool(tool) {
-    currentTool = tool;
-    const penBtn = document.getElementById('penBtn');
-    const eraserBtn = document.getElementById('eraserBtn');
-    if (penBtn) penBtn.classList.toggle('active', tool === 'pen');
-    if (eraserBtn) eraserBtn.classList.toggle('active', tool === 'eraser');
-}
+function toggleCanvasFullscreen(){ const modal = document.getElementById('writeModal'); if(!modal) return; modal.style.display='block'; const canvasWrap = document.querySelector('.handwrite-area'); if(!canvasWrap) return; canvasWrap.requestFullscreen?.(); }
 
-function setColor(color) {
-    penColor = color;
-}
+// 将手写作为图片（插入到 letter 内容中用于保存）
+function useHandwritingAsContent(){ if(!canvas) return alert('无手写内容'); const data = canvas.toDataURL('image/png'); // mark placed
+ placedImageData = data; alert('手写已准备，发送信件后可在信纸上查看并拖动/调整'); }
 
-function setSize(size) {
-    penSize = Number(size);
-}
+function handleUploadPaper(e){ const f = e.target.files && e.target.files[0]; if(!f) return; const r = new FileReader(); r.onload=function(ev){ placedImageData = ev.target.result; alert('上传图片已准备，发送后可在信纸上查看并调整'); }; r.readAsDataURL(f); }
 
 // 提交信件
-function submitLetter() {
+function submitLetter(){
     const senderNameEl = document.getElementById('senderName');
     const recipientNameEl = document.getElementById('recipientName');
     const accessEl = document.getElementById('writeAccessCode');
     const senderName = senderNameEl ? senderNameEl.value.trim() : '';
     const recipientName = recipientNameEl ? recipientNameEl.value.trim() : '';
     const accessCode = accessEl ? accessEl.value.trim() : '';
-    
-    // 验证
-    if (!senderName) {
-        alert('请输入寄信人名字');
-        return;
-    }
-    if (!recipientName) {
-        alert('请输入收信人名字');
-        return;
-    }
-    if (!accessCode) {
-        alert('请设置取信码');
-        return;
-    }
-    
-    // 检查取信码是否已存在（不区分大小写）
-    if (letters.some(letter => letter.accessCode && letter.accessCode.toLowerCase() === accessCode.toLowerCase())) {
-        alert('此取信码已被使用，请设置其他取信码');
-        return;
-    }
-    
-    // 检查是否有内容
-    const textContentEl = document.getElementById('letterContent');
-    const textContent = textContentEl ? textContentEl.value.trim() : '';
-    const canvasImageData = canvas ? canvas.toDataURL() : '';
-    const isCanvasEmpty = (blankCanvasData && canvasImageData === blankCanvasData) || (!blankCanvasData && drawingHistory.length <= 1);
-    
-    // 检查活跃的标签页内容
-    const textTabActive = document.getElementById('textInput') && document.getElementById('textInput').classList.contains('active');
-    
-    if (textTabActive && !textContent) {
-        alert('请输入信件内容或切换到手写模式');
-        return;
-    }
-    
-    if (!textTabActive && isCanvasEmpty) {
-        alert('请手写信件内容或切换到文字模式');
-        return;
-    }
-    
-    // 创建信件对象（去掉标题）
-    const letter = {
-        id: Date.now(),
-        senderName: senderName,
-        recipientName: recipientName,
-        content: textTabActive ? textContent : null,
-        handwrittenContent: !textTabActive ? canvasImageData : null,
-        accessCode: accessCode,
-        createdDate: new Date().toLocaleString('zh-CN'),
-        createdTime: new Date().getTime()
-    };
-    
-    // 保存信件
-    letters.push(letter);
-    saveLetters();
-    
-    // 显示成功消息
-    alert(`信件已发送！\n\n收信人可以使用取信码 "${accessCode}" 来查看您的信件`);
-    
-    // 清空表单
-    clearLetterForm();
-    closeModal('writeModal');
+    if(!senderName){ alert('请输入寄信人名字'); return; }
+    if(!recipientName){ alert('请输入收信人名字'); return; }
+    if(!accessCode){ alert('请设置取信码'); return; }
+    if(letters.some(letter=>letter.accessCode && letter.accessCode.toLowerCase()===accessCode.toLowerCase())){ alert('此取信码已被使用，请设置其他取信码'); return; }
+    const textContent = document.getElementById('letterContent')?.value.trim() || null;
+    const textTabActive = document.getElementById('textInput')?.classList.contains('active');
+    if(textTabActive && !textContent && !placedImageData){ alert('请输入信件内容或手写/上传图片作为内容'); return; }
+    if(!textTabActive && !placedImageData){ alert('请手写或上传图片作为信件内容'); return; }
+
+    const letter = { id: Date.now(), senderName, recipientName, content: textTabActive ? textContent : null, handwrittenContent: !textTabActive ? (placedImageData || null) : (placedImageData || null), accessCode, createdDate: new Date().toLocaleString('zh-CN'), createdTime: Date.now() };
+    letters.push(letter); saveLetters(); alert(`信件已发送！\n\n收信人可以使用取信码 "${accessCode}" 来查看您的信件`);
+    // reset
+    clearLetterForm(); closeModal('writeModal'); placedImageData = null;
 }
 
-// 清空信件表单
-function clearLetterForm() {
-    const senderEl = document.getElementById('senderName');
-    const recipientEl = document.getElementById('recipientName');
-    const textEl = document.getElementById('letterContent');
-    const accessEl = document.getElementById('writeAccessCode');
-    if (senderEl) senderEl.value = '';
-    if (recipientEl) recipientEl.value = '';
-    if (textEl) textEl.value = '';
-    if (accessEl) accessEl.value = '';
-    clearCanvas();
-}
+function clearLetterForm(){ document.getElementById('senderName').value=''; document.getElementById('recipientName').value=''; document.getElementById('letterContent').value=''; document.getElementById('writeAccessCode').value=''; clearCanvas(); placedImageData=null; }
 
 // 取信
-function accessLetter() {
-    const accessEl = document.getElementById('accessInput');
-    const code = accessEl ? (accessEl.value || '').trim() : '';
-    
-    if (!code) {
-        alert('请输入取信码');
-        return;
-    }
-    
-    // 匹配时不区分大小写，容错更好
-    const letter = letters.find(l => l.accessCode && l.accessCode.toLowerCase() === code.toLowerCase());
-    
-    if (!letter) {
-        // 提供调试信息：localStorage 条目数与最近一条的取信码（便于排查）
-        const count = letters.length;
-        const lastCode = count ? (letters[count-1].accessCode || '') : '(无)';
-        alert(`未找到对应的信件，请检查取信码是否正确。\n\n调试信息：本地信件数量 ${count}，最近一条取信码：${lastCode}`);
-        console.log('accessLetter failed. letters:', letters);
-        return;
-    }
-    
-    // 显示信件
-    displayLetter(letter);
-    closeModal('accessModal');
-    showModal('letterModal');
-    
-    // 清空取信码输入框
-    if (accessEl) accessEl.value = '';
+function accessLetter(){ const accessEl = document.getElementById('accessInput'); const code = accessEl ? (accessEl.value||'').trim() : ''; if(!code){ alert('请输入取信码'); return; } const letter = letters.find(l=>l.accessCode && l.accessCode.toLowerCase()===code.toLowerCase()); if(!letter){ const count=letters.length; const lastCode=count? (letters[count-1].accessCode||'') : '(无)'; alert(`未找到对应的信件，请检查取信码是否正确。\n\n调试信息：本地信件数量 ${count}，最近一条取信码：${lastCode}`); console.log('accessLetter failed. letters:', letters); return; } displayLetter(letter); closeModal('accessModal'); showModal('letterModal'); if(accessEl) accessEl.value=''; }
+
+// 展示信件
+function displayLetter(letter){ document.getElementById('displayHeader').textContent='远方来信'; document.getElementById('displaySender').textContent = letter.senderName; document.getElementById('displayRecipient').textContent = letter.recipientName; document.getElementById('displayDate').textContent = letter.createdDate; const contentDiv = document.getElementById('displayContent'); contentDiv.innerHTML=''; // remove previous placed
+ removePlaced(); if(letter.content){ contentDiv.textContent = letter.content; } else if(letter.handwrittenContent){ // insert image
+ const img = document.createElement('img'); img.src = letter.handwrittenContent; img.className = 'placed-handwriting'; img.style.width = '60%'; img.style.position='absolute'; img.style.left='50%'; img.style.top='140px'; img.style.transform='translate(-50%,0)'; img.onload = ()=>{ makeElementDraggable(img); showPlaceControls(); };
+ const paper = document.getElementById('paperContent'); paper.appendChild(img); placedImageEl = img; }
+ // ensure envelope closed
+ const env = document.getElementById('envelopeView'); env?.classList.remove('opened'); // show slider
+ const slider = document.getElementById('openSlider'); if(slider) slider.style.display='flex'; }
+
+function showPlaceControls(){ const pc = document.getElementById('placeControls'); if(pc) pc.style.display='flex'; }
+function removePlaced(){ if(placedImageEl && placedImageEl.parentNode) placedImageEl.parentNode.removeChild(placedImageEl); placedImageEl = null; const pc = document.getElementById('placeControls'); if(pc) pc.style.display='none'; }
+function resizePlaced(v){ if(placedImageEl) placedImageEl.style.width = v + '%'; }
+
+// 可拖拽放置的简单实现
+function makeElementDraggable(el){ let dragging=false; let startX=0, startY=0, origLeft=0, origTop=0; el.style.touchAction='none'; el.addEventListener('pointerdown', function(e){ dragging=true; startX=e.clientX; startY=e.clientY; const rect = el.getBoundingClientRect(); origLeft = rect.left; origTop = rect.top; el.setPointerCapture(e.pointerId); }); document.addEventListener('pointermove', function(e){ if(!dragging) return; const dx = e.clientX - startX; const dy = e.clientY - startY; el.style.left = (origLeft + dx + el.offsetWidth/2) + 'px'; el.style.top = (origTop + dy) + 'px'; el.style.transform = 'translate(-50%,0)'; }); document.addEventListener('pointerup', function(e){ if(dragging){ dragging=false; try{ el.releasePointerCapture(e.pointerId); }catch(e){} } }); }
+
+// 滑动解封功能（简单实现）
+let unlocking = false; let startX=0; function startUnlock(e){ e.preventDefault(); unlocking=true; startX = (e.touches? e.touches[0].clientX : e.clientX); document.addEventListener('mousemove', onMoveUnlock); document.addEventListener('touchmove', onMoveUnlock,{passive:false}); document.addEventListener('mouseup', endUnlock); document.addEventListener('touchend', endUnlock); }
+function onMoveUnlock(e){ if(!unlocking) return; const clientX = e.touches? e.touches[0].clientX : e.clientX; const slider = document.getElementById('openSlider'); const handle = document.getElementById('sliderHandle'); if(!slider||!handle) return; const rect = slider.getBoundingClientRect(); let pos = Math.min(Math.max(clientX - rect.left - 6, 0), rect.width - handle.offsetWidth - 6); handle.style.left = pos + 'px'; if(pos > rect.width - handle.offsetWidth - 20){ // unlocked
+    unlocking=false; openEnvelope(); handle.style.left = '6px'; document.removeEventListener('mousemove', onMoveUnlock); document.removeEventListener('touchmove', onMoveUnlock); document.removeEventListener('mouseup', endUnlock); document.removeEventListener('touchend', endUnlock);
+ }
 }
+function endUnlock(e){ unlocking=false; const handle = document.getElementById('sliderHandle'); if(handle) handle.style.left='6px'; document.removeEventListener('mousemove', onMoveUnlock); document.removeEventListener('touchmove', onMoveUnlock); document.removeEventListener('mouseup', endUnlock); document.removeEventListener('touchend', endUnlock); }
+function openEnvelope(){ const env = document.getElementById('envelopeView'); if(env) env.classList.add('opened'); const slider = document.getElementById('openSlider'); if(slider) slider.style.display='none'; }
 
-// 显示信件内容
-function displayLetter(letter) {
-    // header 仍然显示固定文字或可自定义
-    const displayHeader = document.getElementById('displayHeader');
-    if (displayHeader) displayHeader.textContent = '远方来信';
-    const ds = document.getElementById('displaySender');
-    if (ds) ds.textContent = letter.senderName;
-    const dr = document.getElementById('displayRecipient');
-    if (dr) dr.textContent = letter.recipientName;
-    const dd = document.getElementById('displayDate');
-    if (dd) dd.textContent = letter.createdDate;
-    
-    const contentDiv = document.getElementById('displayContent');
-    if (!contentDiv) return;
-    contentDiv.innerHTML = '';
-    
-    if (letter.content) {
-        contentDiv.textContent = letter.content;
-    } else if (letter.handwrittenContent) {
-        const img = document.createElement('img');
-        img.src = letter.handwrittenContent;
-        img.style.maxWidth = '100%';
-        contentDiv.appendChild(img);
-    }
-}
+// 调试 UI
+function createDebugUI(){ if(document.getElementById('__dbg_toggle')) return; const btn = document.createElement('button'); btn.id='__dbg_toggle'; btn.textContent='调试'; btn.onclick=toggleDebugPanel; document.body.appendChild(btn); const panel = document.createElement('div'); panel.id='__dbg_panel'; panel.style.display='none'; const title=document.createElement('div'); title.textContent='调试：localStorage letters'; title.style.fontWeight='bold'; title.style.marginBottom='8px'; panel.appendChild(title); const info=document.createElement('div'); info.id='__dbg_info'; info.style.fontSize='12px'; info.style.color='#444'; info.style.marginBottom='8px'; panel.appendChild(info); const list=document.createElement('pre'); list.id='__dbg_list'; list.style.whiteSpace='pre-wrap'; list.style.fontSize='12px'; list.style.margin=0; panel.appendChild(list); const actions=document.createElement('div'); actions.style.display='flex'; actions.style.gap='8px'; actions.style.marginTop='8px'; const copyBtn=document.createElement('button'); copyBtn.textContent='复制取信码列表'; copyBtn.className='btn'; copyBtn.onclick=()=>{ const codes=letters.map(l=>l.accessCode||'').join('\n'); navigator.clipboard.writeText(codes).then(()=>alert('已复制取信码列表')); }; actions.appendChild(copyBtn); const clearBtn=document.createElement('button'); clearBtn.textContent='清空所有信（localStorage）'; clearBtn.className='btn btn-secondary'; clearBtn.onclick=()=>{ if(!confirm('确定要清空所有本地信件数据吗？此操作不可恢复。')) return; letters=[]; saveLetters(); renderDebugPanel(); alert('已清空本地信件'); }; actions.appendChild(clearBtn); panel.appendChild(actions); document.body.appendChild(panel); renderDebugPanel(); }
+function toggleDebugPanel(){ const panel=document.getElementById('__dbg_panel'); if(!panel) return; panel.style.display = panel.style.display==='none'?'block':'none'; }
+function renderDebugPanel(){ const info=document.getElementById('__dbg_info'); const list=document.getElementById('__dbg_list'); if(!info||!list) return; info.textContent=`本地信件数量：${letters.length} （最新一条取信码：${letters.length? (letters[letters.length-1].accessCode || '(空)') : '(无)'}）`; try{ list.textContent = JSON.stringify(letters.map(l=>({accessCode:l.accessCode,sender:l.senderName,recipient:l.recipientName,created:l.createdDate})),null,2); }catch(e){ list.textContent = String(letters); } }
+function openRecentDebugInfo(){ const count=letters.length; const last= count? (letters[count-1].accessCode||'(空)') : '(无)'; alert(`本地信件数量：${count}\n最近一条取信码：${last}`); }
 
-// 字迹模仿（前端示例）
-function submitImitate() {
-    const fileInput = document.getElementById('handwritingFile');
-    const preview = document.getElementById('imitatePreview');
-    if (preview) preview.innerHTML = '';
-    if (!fileInput || !fileInput.files || !fileInput.files[0]) {
-        alert('请选择一张图片上传');
-        return;
-    }
-    const file = fileInput.files[0];
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        const img = new Image();
-        img.src = e.target.result;
-        img.style.maxWidth = '100%';
-        preview.appendChild(img);
-
-        const hint = document.createElement('p');
-        hint.textContent = '（这是预览示例。要生成模仿结果，请接入后端/第三方 AI）';
-        preview.appendChild(hint);
-    };
-    reader.readAsDataURL(file);
-}
-
-// ---------------------- 调试面板 ----------------------
-function createDebugUI() {
-    // 创建浮动按钮
-    if (document.getElementById('__dbg_toggle')) return;
-    const btn = document.createElement('button');
-    btn.id = '__dbg_toggle';
-    btn.textContent = '调试';
-    btn.style.position = 'fixed';
-    btn.style.right = '12px';
-    btn.style.bottom = '12px';
-    btn.style.zIndex = 99999;
-    btn.style.background = '#111';
-    btn.style.color = '#fff';
-    btn.style.border = 'none';
-    btn.style.padding = '8px 10px';
-    btn.style.borderRadius = '6px';
-    btn.style.cursor = 'pointer';
-    btn.style.boxShadow = '0 4px 10px rgba(0,0,0,0.3)';
-    btn.onclick = toggleDebugPanel;
-    document.body.appendChild(btn);
-
-    // 创建面板容器
-    const panel = document.createElement('div');
-    panel.id = '__dbg_panel';
-    panel.style.position = 'fixed';
-    panel.style.right = '12px';
-    panel.style.bottom = '56px';
-    panel.style.zIndex = 99999;
-    panel.style.width = '360px';
-    panel.style.maxHeight = '50vh';
-    panel.style.overflow = 'auto';
-    panel.style.background = '#fff';
-    panel.style.color = '#111';
-    panel.style.border = '1px solid rgba(0,0,0,0.08)';
-    panel.style.boxShadow = '0 8px 24px rgba(0,0,0,0.15)';
-    panel.style.borderRadius = '8px';
-    panel.style.padding = '10px';
-    panel.style.display = 'none';
-
-    const title = document.createElement('div');
-    title.style.fontWeight = 'bold';
-    title.style.marginBottom = '8px';
-    title.textContent = '调试：localStorage letters';
-    panel.appendChild(title);
-
-    const info = document.createElement('div');
-    info.id = '__dbg_info';
-    info.style.fontSize = '12px';
-    info.style.color = '#444';
-    info.style.marginBottom = '8px';
-    panel.appendChild(info);
-
-    const list = document.createElement('pre');
-    list.id = '__dbg_list';
-    list.style.whiteSpace = 'pre-wrap';
-    list.style.fontSize = '12px';
-    list.style.margin = '0';
-    panel.appendChild(list);
-
-    const actions = document.createElement('div');
-    actions.style.display = 'flex';
-    actions.style.gap = '8px';
-    actions.style.marginTop = '8px';
-
-    const copyBtn = document.createElement('button');
-    copyBtn.textContent = '复制取信码列表';
-    copyBtn.className = 'btn';
-    copyBtn.onclick = () => {
-        const codes = letters.map(l => l.accessCode || '').join('\n');
-        navigator.clipboard.writeText(codes).then(() => alert('已复制取信码列表到剪贴板'));
-    };
-    actions.appendChild(copyBtn);
-
-    const clearBtn = document.createElement('button');
-    clearBtn.textContent = '清空所有信（localStorage）';
-    clearBtn.className = 'btn btn-secondary';
-    clearBtn.onclick = () => {
-        if (!confirm('确定要清空所有本地信件数据吗？此操作不可恢复。')) return;
-        letters = [];
-        saveLetters();
-        renderDebugPanel();
-        alert('已清空本地信件');
-    };
-    actions.appendChild(clearBtn);
-
-    panel.appendChild(actions);
-    document.body.appendChild(panel);
-
-    renderDebugPanel();
-}
-
-function toggleDebugPanel() {
-    const panel = document.getElementById('__dbg_panel');
-    if (!panel) return;
-    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
-}
-
-function renderDebugPanel() {
-    const info = document.getElementById('__dbg_info');
-    const list = document.getElementById('__dbg_list');
-    if (!info || !list) return;
-    info.textContent = `本地信件数量：${letters.length} （最新一条取信码：${letters.length? (letters[letters.length-1].accessCode || '(空)') : '(无)'}）`;
-    try {
-        list.textContent = JSON.stringify(letters.map(l => ({accessCode: l.accessCode, sender: l.senderName, recipient: l.recipientName, created: l.createdDate})), null, 2);
-    } catch (e) {
-        list.textContent = String(letters);
-    }
-}
-
-// ---------------------- end 调试面板 ----------------------
+// 移除 placed image 按钮
+function removePlaced(){ if(placedImageEl && placedImageEl.parentNode) placedImageEl.parentNode.removeChild(placedImageEl); placedImageEl=null; const pc=document.getElementById('placeControls'); if(pc) pc.style.display='none'; }

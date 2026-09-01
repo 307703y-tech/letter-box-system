@@ -13,16 +13,20 @@
             <div class="mailbox-container">
                 <h1>📮 远方来信</h1>
                 <p class="subtitle">欢迎来到信件的世界</p>
-                
-                <div class="mailbox" onclick="showModal('accessModal')">
-                    <div class="mailbox-icon">📬</div>
-                    <p>点击信箱</p>
-                    <p class="small-text">输入取信码查看信件</p>
+
+                <!-- 信封预览 -->
+                <div class="envelope-preview" onclick="showModal('accessModal')">
+                    <div class="envelope">
+                        <div class="envelope-flap"></div>
+                        <div class="envelope-body">
+                            <div class="stamp">✉️</div>
+                        </div>
+                    </div>
+                    <p class="small-text">点击信封输入取信码查看信件</p>
                 </div>
-                
+
                 <div class="action-buttons">
-                    <!-- 移除“书写新信件”模块要求，保留手写上传和关于 -->
-                    <button class="btn btn-primary" onclick="showModal('writeModal')">✍️ 书写新信件</button>
+                    <button class="btn btn-primary" onclick="showModal('writeModal')">✍️ 写信 / 上传信件</button>
                     <button class="btn btn-secondary" onclick="showModal('aboutModal')">ℹ️ 关于</button>
                 </div>
             </div>
@@ -35,16 +39,19 @@
                 <h2>📬 取信</h2>
                 <p>请输入取信码来查看信件</p>
                 <input type="text" id="accessInput" placeholder="输入取信码" maxlength="20">
-                <button class="btn btn-primary" onclick="accessLetter()">查看信件</button>
+                <div style="margin-top:12px; display:flex; gap:8px; align-items:center;">
+                    <button class="btn btn-primary" onclick="accessLetter()">查看信件</button>
+                    <button class="btn" onclick="openRecentDebugInfo()">显示最近取信码（调试）</button>
+                </div>
             </div>
         </div>
 
-        <!-- 书写信件模态框 -->
+        <!-- 书写/上传信件模态框 -->
         <div id="writeModal" class="modal">
             <div class="modal-content large">
                 <button class="close" onclick="closeModal('writeModal')">&times;</button>
-                <h2>✍️ 书写信件</h2>
-                
+                <h2>✍️ 写信 / 上传信件</h2>
+
                 <div class="form-group">
                     <label>寄信人名字</label>
                     <input type="text" id="senderName" placeholder="请输入你的名字" maxlength="50">
@@ -55,19 +62,17 @@
                     <input type="text" id="recipientName" placeholder="请输入收信人名字" maxlength="50">
                 </div>
 
-                <!-- 移除信件标题字段 -->
-
                 <div class="form-group">
-                    <label>信件内容</label>
+                    <label>信件内容（文字 或 使用手写/上传图片）</label>
                     <div class="content-tabs">
                         <button class="tab-btn active" onclick="switchTab('textInput', event)">📝 文字</button>
-                        <button class="tab-btn" onclick="switchTab('handwriteInput', event)">✏️ 手写</button>
+                        <button class="tab-btn" onclick="switchTab('handwriteInput', event)">✏️ 手写 / 上传</button>
                     </div>
-                    
+
                     <div id="textInput" class="tab-content active">
-                        <textarea id="letterContent" placeholder="请输入信件内容..." rows="10"></textarea>
+                        <textarea id="letterContent" placeholder="请输入信件内容..." rows="8"></textarea>
                     </div>
-                    
+
                     <div id="handwriteInput" class="tab-content">
                         <div class="tool-bar">
                             <button class="tool-btn active" id="penBtn" onclick="setTool('pen')">铅笔</button>
@@ -76,10 +81,16 @@
                             <label class="tool-label">粗细 <input type="range" id="penSize" min="1" max="30" value="2" onchange="setSize(this.value)"></label>
                             <button class="btn btn-small" onclick="undoCanvas()">撤销</button>
                             <button class="btn btn-small" onclick="clearCanvas()">清除</button>
-                            <button class="btn btn-small" onclick="showModal('imitateModal')">上传字迹并模仿</button>
+                            <button class="btn btn-small" onclick="toggleCanvasFullscreen()">放大书写区域</button>
                         </div>
-                        <canvas id="handwriteCanvas" width="700" height="400"></canvas>
-                        <div class="canvas-buttons">
+
+                        <div class="handwrite-area">
+                            <canvas id="handwriteCanvas" width="900" height="500"></canvas>
+                        </div>
+
+                        <div style="margin-top:8px; display:flex; gap:8px; align-items:center;">
+                            <button class="btn btn-primary" onclick="useHandwritingAsContent()">将手写插入到信纸（作为图片）</button>
+                            <label class="tool-label">或上传纸质信件： <input type="file" id="uploadPaper" accept="image/*" onchange="handleUploadPaper(event)"></label>
                         </div>
                     </div>
                 </div>
@@ -94,21 +105,43 @@
             </div>
         </div>
 
-        <!-- 信件显示模态框 -->
+        <!-- 信件显示模态框（含信封/滑动开封） -->
         <div id="letterModal" class="modal">
-            <div class="modal-content large">
+            <div class="modal-content large letter-modal-content">
                 <button class="close" onclick="closeModal('letterModal')">&times;</button>
-                <div class="letter-display">
-                    <div class="letter-header">
-                        <h2 id="displayHeader">远方来信</h2>
-                        <p class="letter-info">寄自：<span id="displaySender"></span></p>
-                        <p class="letter-info">寄给：<span id="displayRecipient"></span></p>
-                        <p class="letter-info">时间：<span id="displayDate"></span></p>
+
+                <div class="envelope-container" id="envelopeContainer">
+                    <div class="envelope-view" id="envelopeView">
+                        <div class="envelope-cover" id="envelopeCover">
+                            <div class="wax">✺</div>
+                        </div>
+                        <div class="paper" id="paperContent">
+                            <div class="paper-inner">
+                                <div class="letter-header">
+                                    <h2 id="displayHeader">远方来信</h2>
+                                    <p class="letter-info">寄自：<span id="displaySender"></span></p>
+                                    <p class="letter-info">寄给：<span id="displayRecipient"></span></p>
+                                    <p class="letter-info">时间：<span id="displayDate"></span></p>
+                                </div>
+                                <div class="letter-content" id="displayContent">
+                                    <!-- 文字或图片内容 -->
+                                </div>
+                                <div class="place-controls" id="placeControls" style="display:none; margin-top:8px; gap:8px; align-items:center;">
+                                    <label class="tool-label">图像宽度 <input type="range" id="placedSize" min="10" max="100" value="60" onchange="resizePlaced(this.value)"></label>
+                                    <button class="btn" onclick="removePlaced()">移除手写/图片</button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="letter-content" id="displayContent">
-                        <!-- 内容将在这里显示 -->
+
+                    <div class="unlock-area">
+                        <div class="slider" id="openSlider" onmousedown="startUnlock(event)" ontouchstart="startUnlock(event)">
+                            <div class="slider-handle" id="sliderHandle">⮕</div>
+                            <div class="slider-label">滑动解封</div>
+                        </div>
                     </div>
                 </div>
+
             </div>
         </div>
 
@@ -125,21 +158,6 @@
                     <li>📖 阅读他人寄给你的信件</li>
                 </ul>
                 <p>所有信件存储在浏览器本地，确保隐私安全。</p>
-            </div>
-        </div>
-
-        <!-- 模拟字迹模态框（上传并调用外部 AI 服务的占位） -->
-        <div id="imitateModal" class="modal">
-            <div class="modal-content">
-                <button class="close" onclick="closeModal('imitateModal')">&times;</button>
-                <h2>🖋️ 上传手写字迹并模仿（示例）</h2>
-                <p>上传一张包含你手写文字的图片，系统会（示例性地）调用 AI 服务生成可用于模仿的字体/笔迹预览。</p>
-                <input type="file" id="handwritingFile" accept="image/*">
-                <div id="imitatePreview" style="margin-top:10px;"></div>
-                <div style="margin-top:12px;">
-                    <button class="btn btn-primary" onclick="submitImitate()">生成模仿效果（示例）</button>
-                </div>
-                <p class="small-text">注意：当前为前端示例，需后端或第三方 AI 服务配合。代码中已留下调用说明。</p>
             </div>
         </div>
 
