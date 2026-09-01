@@ -48,7 +48,7 @@ html,body{height:100%;margin:0;font-family: 'Roboto', 'Segoe UI', Tahoma, Geneva
 .envelope-container{display:flex;flex-direction:column;align-items:center;gap:12px}
 .envelope-view{position:relative;width:840px;max-width:95%;height:auto}
 .envelope-cover{position:relative;background:linear-gradient(180deg,#E6CDB6,#D9BFA1);height:200px;border-radius:8px 8px 0 0;box-shadow:0 8px 20px rgba(0,0,0,0.12);display:flex;align-items:center;justify-content:center;cursor:pointer}
-.envelope-cover .wax{font-size:28px}
+.envelope-cover .wax{font-size:28px; width:56px; height:56px; display:inline-block; background-image:url('assets/wax-seal.svg'); background-size:56px 56px; background-repeat:no-repeat; text-indent:-9999px}
 .paper{background:linear-gradient(180deg,var(--paper),#fff);min-height:360px;padding:20px;border-radius:0 0 8px 8px;border:1px solid rgba(0,0,0,0.06);box-shadow:0 10px 30px rgba(0,0,0,0.08);transform-origin:top center;transition:transform 400ms ease, background 300ms}
 .paper-inner{max-width:760px;margin:0 auto;position:relative}
 .letter-header h2{margin:0;color:var(--accent)}
@@ -56,9 +56,9 @@ html,body{height:100%;margin:0;font-family: 'Roboto', 'Segoe UI', Tahoma, Geneva
 .letter-content{margin-top:12px;white-space:pre-wrap}
 
 /* 纸张样式 */
-.paper.style-lined{background-image: repeating-linear-gradient(#fff 0 28px, rgba(0,0,0,0.02) 28px 29px);}
-.paper.style-grid{background-image: linear-gradient(to right, rgba(0,0,0,0.03) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,0,0,0.03) 1px, transparent 1px); background-size: 30px 30px;}
-.paper.style-kraft{background:linear-gradient(180deg,#f0e2cf,#e6d6bf);}
+.paper.style-lined{background-image: url('assets/paper-texture.svg'), repeating-linear-gradient(#fff 0 28px, rgba(0,0,0,0.02) 28px 29px); background-blend-mode:multiply;}
+.paper.style-grid{background-image: url('assets/paper-texture.svg'), linear-gradient(to right, rgba(0,0,0,0.03) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,0,0,0.03) 1px, transparent 1px); background-size: 30px 30px; background-blend-mode:multiply;}
+.paper.style-kraft{background-image: url('assets/paper-texture.svg'), linear-gradient(180deg,#f0e2cf,#e6d6bf); background-blend-mode:multiply;}
 
 .unlock-area{display:flex;justify-content:center;margin-top:8px}
 .slider{width:320px;height:46px;background:#f3f3f3;border-radius:28px;display:flex;align-items:center;padding:6px;position:relative;user-select:none}
