@@ -15,6 +15,7 @@ let penSize = 2;
 window.onload = function() {
     loadLetters();
     initializeHandwriteCanvas();
+    createDebugUI(); // 调试面板（开发时可用）
 };
 
 // 从 localStorage 加载信件
@@ -37,6 +38,7 @@ function loadLetters() {
 function saveLetters() {
     try {
         localStorage.setItem('letters', JSON.stringify(letters));
+        renderDebugPanel();
     } catch (e) {
         console.warn('保存到 localStorage 失败', e);
     }
@@ -370,7 +372,11 @@ function accessLetter() {
     const letter = letters.find(l => l.accessCode && l.accessCode.toLowerCase() === code.toLowerCase());
     
     if (!letter) {
-        alert('未找到对应的信件，请检查取信码是否正确');
+        // 提供调试信息：localStorage 条目数与最近一条的取信码（便于排查）
+        const count = letters.length;
+        const lastCode = count ? (letters[count-1].accessCode || '') : '(无)';
+        alert(`未找到对应的信件，请检查取信码是否正确。\n\n调试信息：本地信件数量 ${count}，最近一条取信码：${lastCode}`);
+        console.log('accessLetter failed. letters:', letters);
         return;
     }
     
@@ -432,3 +438,114 @@ function submitImitate() {
     };
     reader.readAsDataURL(file);
 }
+
+// ---------------------- 调试面板 ----------------------
+function createDebugUI() {
+    // 创建浮动按钮
+    if (document.getElementById('__dbg_toggle')) return;
+    const btn = document.createElement('button');
+    btn.id = '__dbg_toggle';
+    btn.textContent = '调试';
+    btn.style.position = 'fixed';
+    btn.style.right = '12px';
+    btn.style.bottom = '12px';
+    btn.style.zIndex = 99999;
+    btn.style.background = '#111';
+    btn.style.color = '#fff';
+    btn.style.border = 'none';
+    btn.style.padding = '8px 10px';
+    btn.style.borderRadius = '6px';
+    btn.style.cursor = 'pointer';
+    btn.style.boxShadow = '0 4px 10px rgba(0,0,0,0.3)';
+    btn.onclick = toggleDebugPanel;
+    document.body.appendChild(btn);
+
+    // 创建面板容器
+    const panel = document.createElement('div');
+    panel.id = '__dbg_panel';
+    panel.style.position = 'fixed';
+    panel.style.right = '12px';
+    panel.style.bottom = '56px';
+    panel.style.zIndex = 99999;
+    panel.style.width = '360px';
+    panel.style.maxHeight = '50vh';
+    panel.style.overflow = 'auto';
+    panel.style.background = '#fff';
+    panel.style.color = '#111';
+    panel.style.border = '1px solid rgba(0,0,0,0.08)';
+    panel.style.boxShadow = '0 8px 24px rgba(0,0,0,0.15)';
+    panel.style.borderRadius = '8px';
+    panel.style.padding = '10px';
+    panel.style.display = 'none';
+
+    const title = document.createElement('div');
+    title.style.fontWeight = 'bold';
+    title.style.marginBottom = '8px';
+    title.textContent = '调试：localStorage letters';
+    panel.appendChild(title);
+
+    const info = document.createElement('div');
+    info.id = '__dbg_info';
+    info.style.fontSize = '12px';
+    info.style.color = '#444';
+    info.style.marginBottom = '8px';
+    panel.appendChild(info);
+
+    const list = document.createElement('pre');
+    list.id = '__dbg_list';
+    list.style.whiteSpace = 'pre-wrap';
+    list.style.fontSize = '12px';
+    list.style.margin = '0';
+    panel.appendChild(list);
+
+    const actions = document.createElement('div');
+    actions.style.display = 'flex';
+    actions.style.gap = '8px';
+    actions.style.marginTop = '8px';
+
+    const copyBtn = document.createElement('button');
+    copyBtn.textContent = '复制取信码列表';
+    copyBtn.className = 'btn';
+    copyBtn.onclick = () => {
+        const codes = letters.map(l => l.accessCode || '').join('\n');
+        navigator.clipboard.writeText(codes).then(() => alert('已复制取信码列表到剪贴板'));
+    };
+    actions.appendChild(copyBtn);
+
+    const clearBtn = document.createElement('button');
+    clearBtn.textContent = '清空所有信（localStorage）';
+    clearBtn.className = 'btn btn-secondary';
+    clearBtn.onclick = () => {
+        if (!confirm('确定要清空所有本地信件数据吗？此操作不可恢复。')) return;
+        letters = [];
+        saveLetters();
+        renderDebugPanel();
+        alert('已清空本地信件');
+    };
+    actions.appendChild(clearBtn);
+
+    panel.appendChild(actions);
+    document.body.appendChild(panel);
+
+    renderDebugPanel();
+}
+
+function toggleDebugPanel() {
+    const panel = document.getElementById('__dbg_panel');
+    if (!panel) return;
+    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+}
+
+function renderDebugPanel() {
+    const info = document.getElementById('__dbg_info');
+    const list = document.getElementById('__dbg_list');
+    if (!info || !list) return;
+    info.textContent = `本地信件数量：${letters.length} （最新一条取信码：${letters.length? (letters[letters.length-1].accessCode || '(空)') : '(无)'}）`;
+    try {
+        list.textContent = JSON.stringify(letters.map(l => ({accessCode: l.accessCode, sender: l.senderName, recipient: l.recipientName, created: l.createdDate})), null, 2);
+    } catch (e) {
+        list.textContent = String(letters);
+    }
+}
+
+// ---------------------- end 调试面板 ----------------------
